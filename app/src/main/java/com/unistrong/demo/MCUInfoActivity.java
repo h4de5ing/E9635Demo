@@ -5,9 +5,9 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
-import com.unistrong.e9631sdk.Command;
-import com.unistrong.e9631sdk.CommunicationService;
-import com.unistrong.e9631sdk.DataType;
+import com.android.e9631sdk.Command;
+import com.android.e9631sdk.CommunicationService;
+import com.android.e9631sdk.DataType;
 
 public class MCUInfoActivity extends BaseActivity implements View.OnClickListener {
 
@@ -140,8 +140,7 @@ public class MCUInfoActivity extends BaseActivity implements View.OnClickListene
             case TChannel:
                 updateText("current channel " + bytes[0]);
                 break;
-            case TAccStatus://Deprecated
-                break;
+            //case TAccStatus://Deprecated                break;
             case TUnknow://undefined data type,maybe error data
                 break;
             case TGPIO:

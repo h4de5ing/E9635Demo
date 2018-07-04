@@ -5,9 +5,9 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
-import com.unistrong.e9631sdk.Command;
-import com.unistrong.e9631sdk.CommunicationService;
-import com.unistrong.e9631sdk.DataType;
+import com.android.e9631sdk.Command;
+import com.android.e9631sdk.CommunicationService;
+import com.android.e9631sdk.DataType;
 
 /**
  * 1. search can channel and setting channel
@@ -88,8 +88,7 @@ public class J1939Activity extends BaseActivity implements View.OnClickListener 
                             break;
                         case TGPIO:
                             break;
-                        case TAccStatus:
-                            break;
+                        //case TAccStatus:                            break;
                     }
                 }
             });

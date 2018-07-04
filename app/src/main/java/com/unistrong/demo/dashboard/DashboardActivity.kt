@@ -9,9 +9,9 @@ import com.unistrong.demo.DataUtils
 import com.unistrong.demo.R
 import com.unistrong.demo.utils.getECUType
 import com.unistrong.demo.utils.getValueFromMCU
-import com.unistrong.e9631sdk.Command
-import com.unistrong.e9631sdk.CommunicationService
-import com.unistrong.e9631sdk.DataType
+import com.android.e9631sdk.Command
+import com.android.e9631sdk.CommunicationService
+import com.android.e9631sdk.DataType
 import java.text.DecimalFormat
 import kotlin.experimental.and
 
