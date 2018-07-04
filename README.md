@@ -2,11 +2,11 @@
 
 ### Add the dependency
 
-add file libs/e9631_can_sdk_v1.0.jar
+add file libs/e9635_can_sdk_v2.0
 
 ```
 dependencies {
-      implementation files('libs/e9631_can_sdk_v1.0.jar')
+      implementation files('libs/e9635_can_sdk_v2.0.jar')
 }
 ```
 
@@ -240,5 +240,5 @@ closeUart7();//close serial port /dev/ttyS7
 ```
 
 # Issues
-[issues](https://github.com/h4de5ing/E9631Demo/issues)
+[issues](https://github.com/h4de5ing/E9635Demo/issues)
 email:moxi1992@gmail.com
