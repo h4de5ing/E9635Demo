@@ -3,7 +3,10 @@ package com.unistrong.demo;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -39,6 +42,8 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
         findViewById(R.id.btn_set_baud_250K).setOnClickListener(this);
         findViewById(R.id.btn_set_baud_500K).setOnClickListener(this);
         findViewById(R.id.btn_send_data).setOnClickListener(this);
+        findViewById(R.id.btn_filter).setOnClickListener(this);
+        findViewById(R.id.btn_filter_cancel).setOnClickListener(this);
         mTv = (TextView) findViewById(R.id.tv_result);
         findViewById(R.id.btn_clean).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -116,7 +121,12 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
                             break;
                         case TGPIO:
                             break;
-                        //case TAccStatus:                            break;
+                        case TFilter:
+                            updateText((frameFormat == 0 ? "standard id" : "extend id") + " filter " + (bytes[0] == 0x01 ? "success" : " failed"));
+                            break;
+                        case TCancelFilter:
+                            updateText("can id cancel filter " + (bytes[0] == 0x01 ? "success" : " failed"));
+                            break;
                     }
                 }
             });
@@ -180,30 +190,74 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
             case R.id.btn_send_data:
                 String strID = etId.getText().toString();
                 String strData = etData.getText().toString();
-                if (strID.length() % 2 == 0 || strID.length() != 8) {
-                    if (strData.length() % 2 == 0 || strData.length() != 16) {
-                        testSendCanData(int2byte(strID, 4), int2byte(strData, 8));
-                    } else {
-                        Toast.makeText(CanActivity.this, "error data", Toast.LENGTH_SHORT).show();
-                    }
+                if (strID.contains("X")) {
+                    etId.setError("Error id");
                 } else {
-                    Toast.makeText(CanActivity.this, "error id", Toast.LENGTH_SHORT).show();
+                    if (strID.length() % 2 == 0 || strID.length() != 8) {
+                        if (strData.length() % 2 == 0 || strData.length() != 16) {
+                            testSendCanData(int2byte(strID, 4), int2byte(strData, 8));
+                        } else {
+                            Toast.makeText(CanActivity.this, "error data", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Toast.makeText(CanActivity.this, "error id", Toast.LENGTH_SHORT).show();
+                    }
                 }
+                break;
+            case R.id.btn_filter:
+                /**
+                 *
+                 过滤id格式  9个字节
+                 第一个字节表示数据类型：
+                 0x01 扩展id
+                 0x00 标准id
+                 后面  发送数据 01 31 43 37 37 37 32 58 58
+                 8个字节是过滤id的字符串
+                 1C7772XX
+
+                 例如过滤扩展数据帧 1C7772XX
+                 */
+                String strFilterID = etId.getText().toString().trim().toUpperCase();
+           /*     if (frameFormat == 0) {//标准帧 11位
+                    if (!strFilterID.toUpperCase().contains("X")) {//不包含通配符X
+
+
+                    }
+                }*/
+                byte[] id = strFilterID.getBytes();
+                byte[] extendid = new byte[id.length + 1];
+                System.arraycopy(id, 0, extendid, 1, id.length);
+                extendid[0] = (byte) (frameFormat == 1 ? 0x01 : 0x00);//1 扩展 0 标准
+                sendCommand(Command.Send.filterCan(extendid));
+                filterStr = strFilterID;
+                break;
+            case R.id.btn_filter_cancel:
+                sendCommand(Command.Send.cancelFilterCan());
                 break;
         }
     }
+
+    String filterStr = "";
 
     public void testSendCanData(byte[] id, byte[] data) {
         sendCanData(canFrame(id, frameFormat, frameType), data);
     }
 
+    /**
+     * 设置偏移
+     *
+     * @param id
+     * @param frameFormat
+     * @param frameType
+     * @return
+     */
     public byte[] canFrame(byte[] id, int frameFormat, int frameType) {
         Log.i("gh0st", "" + frameFormat + " " + frameType);
-        if (frameFormat == 0) {//11λ ����֡
-            id[1] = (byte) (id[1] & 0xF0);//ȡǰ4λ
+        if (frameFormat == 0) {//11位 数据帧
+            id[1] = (byte) (id[1] & 0xF0);//取前4位
             id[2] = 0x00;
             id[3] = 0x00;
-        } else {//��չ����֡
+        } else {//扩展数据帧
             int count = (id[0] & 0xff) << 24 | (id[1] & 0xff) << 16 | (id[2] & 0xff) << 8 | (id[3] & 0xff);
             int zuoyi = count << 3;
             String zuoyiBinary = Integer.toBinaryString(zuoyi);
@@ -215,13 +269,13 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
                 id[i] = string2byte(getHex(zuoyiBinary.substring(i * 8, (i + 1) * 8)));
             }
         }
-        if (frameFormat == 0 && frameType == 0) {//��׼����֡
+        if (frameFormat == 0 && frameType == 0) {//标准数据帧
             //newId[3] = (byte) (newId[3]);
-        } else if (frameFormat == 1 && frameType == 0) {//��չ����֡
-            id[3] = (byte) (id[3] | 0x04);
-        } else if (frameFormat == 0 && frameType == 1) {//��׼Զ��֡
+        } else if (frameFormat == 0 && frameType == 1) {//标准远程帧
             id[3] = (byte) (id[3] | 0x02);
-        } else if (frameFormat == 1 && frameType == 1) {//��չԶ��֡ ����ֵ����3λ Ȼ�� & 000����
+        } else if (frameFormat == 1 && frameType == 0) {//扩展数据帧
+            id[3] = (byte) (id[3] | 0x04);
+        } else if (frameFormat == 1 && frameType == 1) {//扩展远程帧 输入值左移3位 然后 & 000类型
             id[3] = (byte) (id[3] | 0x06);
         }
         return id;
