@@ -39,6 +39,7 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
         findViewById(R.id.btn_set_channel2).setOnClickListener(this);
         findViewById(R.id.btn_search_mode).setOnClickListener(this);
         findViewById(R.id.btn_set_can_mode).setOnClickListener(this);
+        findViewById(R.id.btn_set_baud_125K).setOnClickListener(this);
         findViewById(R.id.btn_set_baud_250K).setOnClickListener(this);
         findViewById(R.id.btn_set_baud_500K).setOnClickListener(this);
         findViewById(R.id.btn_send_data).setOnClickListener(this);
@@ -98,6 +99,9 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
                             break;
                         case TMcuVoltage:
                             break;
+                        case TCan125:
+                            updateText("can 125K set success");
+                            break;
                         case TCan250:
                             updateText("can 250K set success");
                             break;
@@ -115,7 +119,7 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
                             updateText("current mode " + DataUtils.getDataMode(bytes[0]));
                             break;
                         case TDataCan:
-                            updateText("we got can data:" + DataUtils.saveHex2String(bytes));
+                            handleCanData(bytes);
                             break;
                         case TUnknow:
                             break;
@@ -132,6 +136,17 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
             });
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private void handleCanData(byte[] data) {
+        switch (data[0]) {
+            case 0x01:
+                updateText("we got can channel 1 data:" + DataUtils.saveHex2String(data));
+                break;
+            case 0x02:
+                updateText("we got can channel 2 data:" + DataUtils.saveHex2String(data));
+                break;
         }
     }
 
@@ -180,9 +195,11 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
             case R.id.btn_set_can_mode:
                 sendCommand(Command.Send.ModeCan());
                 break;
+            case R.id.btn_set_baud_125K:
+                sendCommand(Command.Send.Switch125K());
+                break;
             case R.id.btn_set_baud_250K:
                 sendCommand(Command.Send.Switch250K());
-                //sendCommand(Command.Send.Switch500K());
                 break;
             case R.id.btn_set_baud_500K:
                 sendCommand(Command.Send.Switch500K());
@@ -209,8 +226,10 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
                  *
                  过滤id格式  9个字节
                  第一个字节表示数据类型：
-                 0x01 扩展id
-                 0x00 标准id
+                 0x00 标准数据帧
+                 0x02 标准远程帧
+                 0x04 扩展数据帧
+                 0x06 扩展远程帧
                  后面  发送数据 01 31 43 37 37 37 32 58 58
                  8个字节是过滤id的字符串
                  1C7772XX
@@ -218,16 +237,19 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
                  例如过滤扩展数据帧 1C7772XX
                  */
                 String strFilterID = etId.getText().toString().trim().toUpperCase();
-           /*     if (frameFormat == 0) {//标准帧 11位
-                    if (!strFilterID.toUpperCase().contains("X")) {//不包含通配符X
-
-
-                    }
-                }*/
                 byte[] id = strFilterID.getBytes();
                 byte[] extendid = new byte[id.length + 1];
                 System.arraycopy(id, 0, extendid, 1, id.length);
-                extendid[0] = (byte) (frameFormat == 1 ? 0x01 : 0x00);//1 扩展 0 标准
+                //extendid[0] = (byte) (frameFormat == 1 ? 0x01 : 0x00);//1 扩展 0 标准
+                if (frameFormat == 0 && frameType == 0) {//标准数据帧
+                    extendid[0] = (byte) 0x00;
+                } else if (frameFormat == 0 && frameType == 1) {//标准远程帧
+                    extendid[0] = (byte) 0x02;
+                } else if (frameFormat == 1 && frameType == 0) {//扩展数据帧
+                    extendid[0] = (byte) 0x04;
+                } else if (frameFormat == 1 && frameType == 1) {//扩展远程帧
+                    extendid[0] = (byte) 0x06;
+                }
                 sendCommand(Command.Send.filterCan(extendid));
                 filterStr = strFilterID;
                 break;
@@ -259,14 +281,14 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
             id[3] = 0x00;
         } else {//扩展数据帧
             int count = (id[0] & 0xff) << 24 | (id[1] & 0xff) << 16 | (id[2] & 0xff) << 8 | (id[3] & 0xff);
-            int zuoyi = count << 3;
-            String zuoyiBinary = Integer.toBinaryString(zuoyi);
+            int shlInt = count << 3;
+            String shlBinary = Integer.toBinaryString(shlInt);
             String zeroString = "00000000000000000000000000000000";
-            if (zuoyiBinary.length() < 32) {
-                zuoyiBinary = zeroString.substring(0, 32 - zuoyiBinary.length()) + zuoyiBinary;
+            if (shlBinary.length() < 32) {
+                shlBinary = zeroString.substring(0, 32 - shlBinary.length()) + shlBinary;
             }
             for (int i = 0; i < id.length; i++) {
-                id[i] = string2byte(getHex(zuoyiBinary.substring(i * 8, (i + 1) * 8)));
+                id[i] = string2byte(getHex(shlBinary.substring(i * 8, (i + 1) * 8)));
             }
         }
         if (frameFormat == 0 && frameType == 0) {//标准数据帧

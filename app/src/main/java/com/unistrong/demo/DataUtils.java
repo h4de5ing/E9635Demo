@@ -5,24 +5,35 @@ package com.unistrong.demo;
  */
 
 public class DataUtils {
+    public static char[] HEX = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+
     public static String saveHex2String(byte[] data) {
-        StringBuilder sb = new StringBuilder(data.length * 2);
-        char[] HEX = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
-        for (byte aData : data) {
-            int value = aData & 0xff;
-            sb.append(HEX[value / 16]).append(HEX[value % 16]).append(" ");
+        return byteArray2String(data, data.length, true);
+    }
+
+    public static String saveHex2StringNoSpace(byte[] data) {
+        return byteArray2String(data, data.length, false);
+    }
+
+    public static String byteArray2String(byte[] data, int length, boolean hasSpace) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < length; i++) {
+            int value = data[i] & 0xff;
+            sb.append(HEX[value / 16]).append(HEX[value % 16]);
+            if (hasSpace) {
+                sb.append(" ");
+            }
         }
         return sb.toString();
     }
 
     public static String byte2String(byte data) {
         StringBuilder sb = new StringBuilder();
-        final char[] HEX = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-                'A', 'B', 'C', 'D', 'E', 'F'};
         int value = data & 0xff;
         sb.append(HEX[value / 16]).append(HEX[value % 16]).append(" ");
         return sb.toString().trim();
     }
+
     public static byte string2byte(String byteString) {
         byte b = 0;
         if (byteString.length() == 2) {
@@ -30,6 +41,7 @@ public class DataUtils {
         }
         return b;
     }
+
     public static byte[] cutByteArray(byte[] data, int start, int stop) {
         byte[] newData = null;
         if (data != null && data.length > 0 && stop <= data.length && stop - start > 0) {
