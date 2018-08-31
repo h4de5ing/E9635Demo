@@ -38,7 +38,9 @@ class CanActivity : BaseActivity() {
     private var mSendCount = 1L
     private var mCountSend = 0L
     private var mCountReceived = 0L
+    private var mError = 0L
     private var mIsShow = false
+    private var mIsAccoff = false
     private var mInitList = mutableListOf<ByteArray>()
 
     private val mBHandler = Handler {
@@ -103,9 +105,10 @@ class CanActivity : BaseActivity() {
             mIsShow = b
         }
         mBtnCleanCount.setOnClickListener {
+            mError = 0
             mCountSend = 0
             mCountReceived = 0
-            mTvCount.text = "s:$mCountSend r:$mCountReceived"
+            mTvCount.text = "s:$mCountSend r:$mCountReceived e:$mError"
         }
         mInitList.add(Command.Send.Version())
         mInitList.add(Command.Send.SearchChannel())
@@ -135,7 +138,6 @@ class CanActivity : BaseActivity() {
             }
         }
         findViewById<Button>(R.id.btn_version).setOnClickListener {
-            Log.e("gh0st", "TMcuVersion")
             write2Activity(Command.Send.Version())
         }
     }
@@ -172,29 +174,8 @@ class CanActivity : BaseActivity() {
                     }
                     val data = J1939Utils.int2bytes2(dataString)
                     val idData = J1939Utils.int2bytes2(idStr)
-                    val intFrameType = J1939Utils.getFrameType(idData)
-                    val intIdType = J1939Utils.getFrameFormat(idData)
                     mSendCount = sendCount.toLong()
                     sendInThread(idData, data)
-                    /*           if (mSpType.selectedItemPosition != intFrameType || mSpFormat.selectedItemPosition != intIdType) {
-                                   if (mSpType.selectedItemPosition == 0) {//数据帧
-                                       if (mSpFormat.selectedItemPosition == 0) {//标准帧
-                                           updateSend2UI("请输入正确的标准数据帧id")
-                                       } else {
-                                           updateSend2UI("请输入正确的扩展数据帧id")
-                                       }
-                                   } else {//远程帧
-                                       if (mSpFormat.selectedItemPosition == 0) {//标准帧
-                                           updateSend2UI("请输入正确的标准远程帧id")
-                                       } else {
-                                           updateSend2UI("请输入正确的扩展远程帧id")
-                                       }
-                                   }
-                               } else {
-                                   //循环发送
-                                   mSendCount = sendCount.toLong()
-                                   sendInThread(idData, data)
-                               }*/
                 }
             }
         }
@@ -211,7 +192,13 @@ class CanActivity : BaseActivity() {
                 mCountSend++
                 val idcandata = J1939Utils.byteArrayAddByteArray(idData, data)
                 updateSend2UI(J1939Utils.saveHex2String(idcandata))
-                write2Activity(Command.Send.sendData(idcandata, Command.SendDataType.Can))
+                try {
+                    if (!mIsAccoff) {//add off 不再发送数据
+                        write2Activity(Command.Send.sendData(idcandata, Command.SendDataType.Can))
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
                 if (it == mSendCount) {
                     mBtnSend.text = "发送"
                     isSendEnd = true
@@ -227,7 +214,6 @@ class CanActivity : BaseActivity() {
     private fun write2Activity(byteArray: ByteArray) {
         if (mService != null) {
             if (mService!!.isBindSuccess) {
-                Log.e(TAG, "write " + J1939Utils.saveHex2String(byteArray))
                 mService!!.send(byteArray)
             }
         }
@@ -268,7 +254,7 @@ class CanActivity : BaseActivity() {
             }
             mTvResult.scrollTo(0, offset)
         }
-        mTvCount.text = "s:$mCountSend r:$mCountReceived"
+        mTvCount.text = "s:$mCountSend r:$mCountReceived e:$mError"
     }
 
     override fun onResume() {
@@ -288,15 +274,16 @@ class CanActivity : BaseActivity() {
         mService!!.setShutdownCountTime(12)
         mService!!.bind()
         mService!!.getData { data, type ->
-            Log.e("gh0st", "read:" + J1939Utils.saveHex2String(data) + " type:" + type.name)
             when (type) {
                 DataType.TAccOn -> {
                     //记录日志
                     J1939Utils.saveDataInfo2File("acc on")
+                    mIsAccoff = false
                 }
                 DataType.TAccOff -> {
                     //记录日志
                     J1939Utils.saveDataInfo2File("acc off")
+                    mIsAccoff = true
                 }
                 DataType.TDataCan -> {
                     mCountReceived++
@@ -307,6 +294,7 @@ class CanActivity : BaseActivity() {
                 DataType.TCan250 -> updateReceived2UI(" set can 250k success")
                 DataType.TCan500 -> updateReceived2UI(" set can 500k success")
                 DataType.TMcuVersion -> updateReceived2UI(" Mcu Version: ${String(data, Charset.defaultCharset())}")
+                DataType.TUnknow -> mError++
                 else -> {
                 }
             }

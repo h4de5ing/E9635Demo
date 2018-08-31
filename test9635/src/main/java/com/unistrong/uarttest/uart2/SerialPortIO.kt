@@ -21,7 +21,7 @@ object SerialPortIO : BaseIO() {
     }
 
     fun findAllTtysDevices(): Array<String> {
-        val list = File("/dev/").list({ _, name -> name.contains("ttyS") })
+        val list = File("/dev/").list { _, name -> name.contains("ttyS") }
         list.sort()
         return list
     }

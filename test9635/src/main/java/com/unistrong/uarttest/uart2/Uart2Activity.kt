@@ -84,18 +84,13 @@ class Uart2Activity : AppCompatActivity() {
             }, 300)
         }
         mBtnSend.setOnClickListener {
-            val cycle = mEtCycle.text.toString().toInt()
-            if (cycle < 50) {
-                mEtCycle.error = "串口发送周期必须大于50ms"
+            if ("停止" == mBtnSend.text) {
+                mBtnSend.text = "发送"
+                isSendEnd = true
             } else {
-                if ("停止" == mBtnSend.text) {
-                    mBtnSend.text = "发送"
-                    isSendEnd = true
-                } else {
-                    mBtnSend.text = "停止"
-                    isSendEnd = false
-                    sendData()
-                }
+                mBtnSend.text = "停止"
+                isSendEnd = false
+                sendData()
             }
             //val name = mSpName.getItemAtPosition(intName)
             //if ("ttyS7" == name) sendTtys7() else
@@ -168,7 +163,7 @@ class Uart2Activity : AppCompatActivity() {
         //Thread {
         async {
             (0 until mSendCount).forEach {
-                if(isSendEnd){
+                if (isSendEnd) {
                     return@async
                 }
                 val sendData = if (mIsDatainc) OperationUtils.hexAddUI(data, it.toInt()) else data
@@ -244,7 +239,7 @@ class Uart2Activity : AppCompatActivity() {
                 val name = mSpName.getItemAtPosition(intName)
                 try {
                     SerialPortIO.start("/dev/$name", intBaud) { buffer, size ->
-                        Log.d("gh0st ${J1939Utils.saveHex2String(buffer)}")
+                        Log.d("gh0st ${J1939Utils.saveHex2String(buffer, size)}")
                         val data = ByteArray(size)
                         System.arraycopy(buffer, 0, data, 0, size)
                         mCountReceived += data.size
