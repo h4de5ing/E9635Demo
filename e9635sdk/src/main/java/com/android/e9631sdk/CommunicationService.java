@@ -1,26 +1,22 @@
 package com.android.e9631sdk;
 
-import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.os.Build;
+import android.os.Environment;
 import android.os.IBinder;
 import android.os.RemoteException;
-import android.os.SystemClock;
 import android.util.Log;
 
 import com.android.guard.IRemoteService;
 import com.android.guard.IRemoteServiceCallBack;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
+import java.io.File;
 
 public class CommunicationService {
     private static CommunicationService sCommunicationService;
-    private static Activity mActivity;
+    private static Context mActivity;
     private IProcessData mIProcessData;
     private static int mCountTime = 15000;
 
@@ -35,7 +31,7 @@ public class CommunicationService {
     private CommunicationService() {
     }
 
-    public static CommunicationService getInstance(Activity activity) {
+    public static CommunicationService getInstance(Context activity) {
         if (sCommunicationService == null) {
             sCommunicationService = new CommunicationService();
             mActivity = activity;
@@ -62,12 +58,67 @@ public class CommunicationService {
     public void send(byte[] data) {
         if (mService != null) {
             try {
-                Log.i("gh0st", "sdk :" + saveHex2String(data));
+                if (new File(Environment.getExternalStorageDirectory().getAbsoluteFile() + File.separator + "debug.txt").exists()) {
+                    Log.i("gh9st", "write:" + saveHex2String(data));
+                }
                 mService.handleData(data);
             } catch (RemoteException e) {
-                Log.e("gh0st", e.getMessage(), e);
                 e.printStackTrace();
             }
+        }
+    }
+
+
+    @Deprecated
+    public void sendCan(byte[] id, byte[] data) {
+        send(Command.Send.sendData(byteArrayAddByteArray(id, data), Command.SendDataType.Can));
+    }
+
+    public void sendCan(int frameFormat, int frameType, byte[] id, byte[] data) {
+        String zeroString = "00000000000000000000000000000000";
+        if (frameFormat == 0) {//11位 数据帧
+            int count = (id[0] & 0xff) << 24 | (id[1] & 0xff) << 16 | (id[2] & 0xff) << 8 | (id[3] & 0xff);
+            int shlInt = count << 21;
+            String shlBinary = Integer.toBinaryString(shlInt);
+            if (shlBinary.length() < 32) {
+                shlBinary = zeroString.substring(0, 32 - shlBinary.length()) + shlBinary;
+            }
+            for (int i = 0; i < id.length; i++) {
+                id[i] = J1939Utils.string2byte(J1939Utils.getHex(shlBinary.substring(i * 8, (i + 1) * 8)));
+            }
+        } else {//29位扩展帧
+            int count = (id[0] & 0xff) << 24 | (id[1] & 0xff) << 16 | (id[2] & 0xff) << 8 | (id[3] & 0xff);
+            int shlInt = count << 3;
+            String shlBinary = Integer.toBinaryString(shlInt);
+            if (shlBinary.length() < 32) {
+                shlBinary = zeroString.substring(0, 32 - shlBinary.length()) + shlBinary;
+            }
+            for (int i = 0; i < id.length; i++) {
+                id[i] = J1939Utils.string2byte(J1939Utils.getHex(shlBinary.substring(i * 8, (i + 1) * 8)));
+            }
+        }
+        byte[] canData = null;
+        if (frameFormat == 0 && frameType == 0) {//标准数据帧
+            id[3] = id[3];
+            canData = new byte[1 + 4 + 1 + data.length];//1个字节通道 + 4个字节ID + 1个字节数据长度 + N个字节数据(N小于等于8)
+        } else if (frameFormat == 0 && frameType == 1) {//标准远程帧
+            id[3] = (byte) (id[3] | 0x02);
+            canData = new byte[5];//1个字节通道 + 4个字节ID
+        } else if (frameFormat == 1 && frameType == 0) {//扩展数据帧
+            id[3] = (byte) (id[3] | 0x04);
+            canData = new byte[1 + 4 + 1 + data.length];
+        } else if (frameFormat == 1 && frameType == 1) {//扩展远程帧 输入值左移3位 然后 & 000类型
+            id[3] = (byte) (id[3] | 0x06);
+            canData = new byte[5];
+        }
+        if (canData != null) {
+            canData[0] = 0x00;//通道,不处理
+            System.arraycopy(id, 0, canData, 1, id.length);//id
+            if (frameType == 0) {//数据帧
+                canData[5] = (byte) data.length;
+                System.arraycopy(data, 0, canData, 6, data.length);//data
+            }
+            send(Command.Send.sendData(canData, Command.SendDataType.Can));
         }
     }
 
@@ -78,10 +129,6 @@ public class CommunicationService {
         resultData[id.length + 1] = (byte) data.length;
         System.arraycopy(data, 0, resultData, id.length + 2, data.length);
         return resultData;
-    }
-
-    public void sendCan(byte[] id, byte[] data) {
-        send(Command.Send.sendData(byteArrayAddByteArray(id, data), Command.SendDataType.Can));
     }
 
     public void sendOBD(byte[] data) {
@@ -96,13 +143,8 @@ public class CommunicationService {
     public void bind() throws Exception {
         if (mActivity != null) {
             Intent intent = new Intent();
-            if ("E9635".equalsIgnoreCase(Build.DEVICE)) {
-                intent.setAction("com.android.guard.E9631Service");
-                intent.setPackage("com.android.guard");
-            } else {
-                intent.setAction("com.unistrong.guard.E9631Service");
-                intent.setPackage("com.unistrong.guard");
-            }
+            intent.setAction("com.android.guard.E9631Service");
+            intent.setPackage("com.android.guard");
             mActivity.bindService(intent, conn, Context.BIND_AUTO_CREATE);
         } else {
             throw new Exception("gh0st -- bind fail , activity is Null");
@@ -138,7 +180,6 @@ public class CommunicationService {
                 mService = IRemoteService.Stub.asInterface(service);
                 mService.registerCallback(mCallback);
             } catch (RemoteException e) {
-                Log.e("gh0st", e.getMessage(), e);
                 e.printStackTrace();
             }
         }
@@ -152,89 +193,15 @@ public class CommunicationService {
 
         @Override
         public void valueChanged(byte[] protocolData) throws RemoteException {
-            ReceivePack(protocolData, protocolData.length);
+            if (new File(Environment.getExternalStorageDirectory().getAbsoluteFile() + File.separator + "debug.txt").exists()) {
+                Log.i("gh9st", "read:" + saveHex2String(protocolData));
+            }
+            postData2(protocolData);
         }
     };
 
 
-    private int BUF_SIZE = 2048;
-    private int m_nBufLen = 0;
-    private byte[] m_RecvPack = new byte[BUF_SIZE];
-    private byte[] m_pRecvBuf = new byte[BUF_SIZE];
-
-    private void ReceivePack(byte buf[], int size) {
-        if (m_nBufLen + size >= BUF_SIZE) {
-            m_nBufLen = 0;
-        }
-        System.arraycopy(buf, 0, m_pRecvBuf, m_nBufLen, size);
-        m_nBufLen += size;
-        boolean bRet = false;
-        do {
-            bRet = parseData(m_pRecvBuf, m_nBufLen);
-        } while (bRet);
-    }
-
-    private boolean parseData(byte[] buf, int size) {
-        boolean findHead = false;
-        boolean findTail = false;
-        int length = 0;
-        int i = 0;
-        for (i = 0; i < size; ++i) {
-            if (buf[i] == 0x55) {
-                if (++i >= size) {
-                    return false;
-                }
-                if (buf[i] == 0x02) {
-                    findHead = true;
-                } else if (buf[i] == 0x03 && findHead) {
-                    findTail = true;
-                    ++i;
-                    break;
-                } else if (buf[i] == 0x55) {
-                    m_RecvPack[length++] = buf[i];
-                }
-            } else {
-                if (findHead) {
-                    m_RecvPack[length++] = buf[i];
-                }
-            }
-        }
-        if (findTail) {
-            m_nBufLen -= i;
-            if (m_nBufLen < 0) {
-                m_nBufLen = 0;
-            }
-            System.arraycopy(m_pRecvBuf, i, m_pRecvBuf, 0, m_nBufLen);
-            if (verify(m_RecvPack, length)) {
-                postData2(m_pRecvBuf, length);
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            return false;
-        }
-    }
-
-    private boolean verify(byte buf[], int size) {
-        try {
-            byte CK_A = 0;
-            byte CK_B = 0;
-            for (int i = 0; i < size - 2; ++i) {
-                CK_A += buf[i];
-                CK_B += CK_A;
-            }
-            byte A = (byte) (buf[size - 2] & 0xFF);
-            byte B = (byte) (buf[size - 1] & 0xFF);
-            return (CK_A == A) && (CK_B == B);
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private void postData2(byte[] tempData, int size) {
-        byte[] protocolData = new byte[size + 4];
-        System.arraycopy(tempData, 0, protocolData, 0, protocolData.length);
+    private void postData2(byte[] protocolData) {
         byte type = protocolData[2];
         int length = ((protocolData[3] & 0xFF) << 8 | ((protocolData[4] & 0xFF)));
         byte dataType = protocolData[5];
@@ -245,8 +212,9 @@ public class CommunicationService {
         } else if (type == 0x30 && dataType == 0x01) {//acc on
             mIProcessData.process(data, DataType.TAccOn);
         } else if (type == 0x30 && dataType == 0x00) {//acc off
-            FileUtils.saveDataInfo2File("accoff", new SimpleDateFormat("yyyyMMddHHmmss", Locale.CHINA).format(SystemClock.currentThreadTimeMillis()) + "" + saveHex2String(data));
             mIProcessData.process(data, DataType.TAccOff);
+        } else if (type == 0x31 && dataType == 0x12) {//can 125
+            mIProcessData.process(data, DataType.TCan125);
         } else if (type == 0x31 && dataType == 0x25) {//can 250
             mIProcessData.process(data, DataType.TCan250);
         } else if (type == 0x31 && dataType == 0x50) {//can 500
@@ -255,19 +223,74 @@ public class CommunicationService {
             mIProcessData.process(data, DataType.TMcuVoltage);
         } else if (type == 0x41) {
             mIProcessData.process(data, DataType.TDataCan);
+            //updateCan(data);
         } else if (type == 0x61) {
             mIProcessData.process(data, DataType.TDataOBD);
         } else if (type == 0x71) {
-            mIProcessData.process(data, DataType.TDataJ1939);
+            //mIProcessData.process(data, DataType.TDataJ1939);
+            updateJ1939(data);
         } else if (type == (byte) 0x81) {
             mIProcessData.process(data, DataType.TDataMode);
         } else if (type == (byte) 0x83) {
             mIProcessData.process(data, DataType.TChannel);
         } else if (type == (byte) (0x91)) {
             mIProcessData.process(data, DataType.TGPIO);
+        } else if (type == 0x50) {
+            mIProcessData.process(data, DataType.TFilter);
+        } else if (type == 0x51) {
+            mIProcessData.process(data, DataType.TCancelFilter);
         } else {
             mIProcessData.process(data, DataType.TUnknow);
-            Log.d("gh0st", "we don't check:" + saveHex2String(data));
+            Log.d("gh0st", "we don't support:" + saveHex2String(protocolData));
+        }
+    }
+
+    private void updateCan(byte[] bytes) {
+        byte[] id = new byte[4];
+        System.arraycopy(bytes, 1, id, 0, id.length);//ID
+        byte[] data = null;
+        int frameFormatType = (id[3] & 7);
+        int frameFormat = 0;
+        int frameType = 0;
+        byte[] newId = null;
+        switch (frameFormatType) {
+            case 0://标准数据
+                frameFormat = 0;
+                frameType = 0;
+                newId = new KtUtils().ushr3(id, 21);
+                int dataLength = bytes[5];
+                data = new byte[dataLength];
+                System.arraycopy(bytes, 6, data, 0, dataLength);
+                break;
+            case 2://标准远程
+                frameFormat = 0;
+                frameType = 1;
+                newId = new KtUtils().ushr3(id, 21);
+                break;
+            case 4://扩展数据
+                frameFormat = 1;
+                frameType = 0;
+                newId = new KtUtils().ushr3(id, 3);
+                int dataLengthExtra = bytes[5];
+                data = new byte[dataLengthExtra];
+                System.arraycopy(bytes, 6, data, 0, dataLengthExtra);
+                break;
+            case 6://扩展远程
+                frameFormat = 1;
+                frameType = 1;
+                newId = new KtUtils().ushr3(id, 3);
+                break;
+        }
+    }
+
+    private void updateJ1939(byte[] bytes) {
+        byte[] id = new KtUtils().handleJ1939(bytes);
+        byte[] data = new byte[bytes.length];
+        data[0] = bytes[0];
+        System.arraycopy(id, 0, data, 1, id.length);
+        System.arraycopy(bytes, 5, data, 5, bytes.length - 5);
+        if (mIProcessData != null) {
+            mIProcessData.process(data, DataType.TDataJ1939);
         }
     }
 

@@ -9,6 +9,7 @@ public class Command {
     private static byte[] ENDOF = new byte[]{0x55, 0x03};
     private static byte[] VERSION = new byte[]{0x20, 0x00, 0x01, 0x33};
     private static byte[] Voltage = new byte[]{0x20, 0x00, 0x01, 0x34};
+    private static byte[] Switch125K = new byte[]{0x30, 0x00, 0x01, 0x12};
     private static byte[] Switch250K = new byte[]{0x30, 0x00, 0x01, 0x25};
     private static byte[] Switch500K = new byte[]{0x30, 0x00, 0x01, 0x50};
     private static byte[] UartBaudRate9600 = {0x30, 0x00, 0x01, 0x09};
@@ -18,7 +19,9 @@ public class Command {
     private static byte[] UartBaudRate230400 = {0x30, 0x00, 0x01, 0x23};
     private static byte[] CancelShutDown = {0x30, 0x00, 0x01, 0x02};
     private static byte[] ShutDown = {0x30, 0x00, 0x01, 0x03};
-    //private static byte[] update = new byte[]{0x30, 0x00, 0x01, 0x04};
+    private static byte[] update = new byte[]{0x30, 0x00, 0x01, 0x04};
+    private static byte[] filterCan = new byte[]{0x50, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00};
+    private static byte[] clearFilterCan = new byte[]{0x51, 0x00, 0x01, 0x00};
 
     private static byte[] modeJ1939 = {(byte) 0x80, 0x00, 0x01, 0x01};
     private static byte[] modeObd = {(byte) 0x80, 0x00, 0x01, 0x02};
@@ -59,6 +62,34 @@ public class Command {
             list.add(createProtocolPacket(new byte[]{(byte) 0x90, 0x00, 0x01, 0x16}));//Mileage_pwr_en(GPIO)    en  ..enable
             list.add(createProtocolPacket(new byte[]{(byte) 0x90, 0x00, 0x01, 0x22}));//Mileage_mcuin(GPIO)
             return list;
+        }
+
+        public static byte[] filterCan(int frameFormat, int frameType, byte[] id) {
+            byte[] extendid = new byte[id.length + 1];
+            System.arraycopy(id, 0, extendid, 1, id.length);
+            if (frameFormat == 0 && frameType == 0) {//标准数据帧
+                extendid[0] = (byte) 0x00;
+            } else if (frameFormat == 0 && frameType == 1) {//标准远程帧
+                extendid[0] = (byte) 0x02;
+            } else if (frameFormat == 1 && frameType == 0) {//扩展数据帧
+                extendid[0] = (byte) 0x04;
+            } else if (frameFormat == 1 && frameType == 1) {//扩展远程帧
+                extendid[0] = (byte) 0x06;
+            }
+            return filterCan(extendid);
+        }
+
+        public static byte[] filterCan(byte[] id) {
+            byte[] protocolData = new byte[id.length + 3];//协议数据类型 1 + 当前长度 2 + 数据长度
+            protocolData[0] = 0x50;
+            protocolData[1] = (byte) (id.length >> 8 & 0xFF);
+            protocolData[2] = (byte) (id.length & 0xFF);
+            System.arraycopy(id, 0, protocolData, 3, id.length);
+            return createProtocolPacket(protocolData);
+        }
+
+        public static byte[] cancelFilterCan() {
+            return createProtocolPacket(new byte[]{0x51, 0x00, 0x01, 0x01});
         }
 
         public static byte[] GpioRadar() {
@@ -115,18 +146,22 @@ public class Command {
             return createProtocolPacket(Switch250K);
         }
 
+        public static byte[] Switch125K() {
+            return createProtocolPacket(Switch125K);
+        }
+
         public static byte[] Version() {
             return createProtocolPacket(VERSION);
         }
 
-        //private static byte[] Update() { return createProtocolPacket(update);}
+        private static byte[] Update() {
+            return createProtocolPacket(update);
+        }
 
         public static byte[] Voltage() {
             return createProtocolPacket(Voltage);
         }
 
-
-        @Deprecated
         private static byte[] CancelShutDown() {
             return createProtocolPacket(CancelShutDown);
         }
