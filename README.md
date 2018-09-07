@@ -242,3 +242,12 @@ closeUart7();//close serial port /dev/ttyS7
 # Issues
 [issues](https://github.com/h4de5ing/E9635Demo/issues)
 email:moxi1992@gmail.com
+
+
+library module
+e9635sdk
+uartsdk
+
+app module
+app    can/串口示例代码
+test9635   压力测试工具

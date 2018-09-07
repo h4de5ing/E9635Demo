@@ -7,8 +7,8 @@ android {
         applicationId "com.unistrong.uarttest"
         minSdkVersion 15
         targetSdkVersion 27
-        versionCode 5
-        versionName "1.6"
+        versionCode 6
+        versionName "1.7"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
 
@@ -26,6 +26,7 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:0.21' //kotlin async
     implementation 'com.android.support:appcompat-v7:27.1.1'
     implementation 'com.android.support:design:27.1.1'
+    implementation project(':e9635sdk')
 }
 task appTest9635(dependsOn: 'assembleDebug') << {
     def today = new Date().format('yyyyMMddHHmmss')

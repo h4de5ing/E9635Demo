@@ -64,7 +64,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:digits="@string/input_type_hexletter"
-                android:maxLength="50"
+                android:maxLength="100"
                 android:text="01234567" />
         </android.support.design.widget.TextInputLayout>
 

@@ -86,8 +86,8 @@ class J1939Activity : BaseActivity(), View.OnClickListener, TextWatcher {
         mSpDlc!!.adapter = ArrayAdapter(this@J1939Activity, android.R.layout.simple_spinner_item, resources.getStringArray(R.array.dlc))
         mSpDlc!!.setSelection(2)
         initBind()
-        val pfString = mEtPf!!.text.toString()
-        val intPf = J1939Utils.byte2int(J1939Utils.string2byte(pfString))
+        //val pfString = mEtPf!!.text.toString()
+        //val intPf = J1939Utils.byte2int(J1939Utils.string2byte(pfString))
         //updateText(if (intPf < 240) "if PF<240(0xF0),PDU1 format ;PDU1 -> PS is dst address " else "if PF>=240(0xF0),PDU2 format ;PDU2 -> PS Domain as group expansion(GE)")
         mFilter = if (filter.isChecked) 0x01 else 0x00
         mHandle.postDelayed({ sendCommand(Command.Send.Channel1()) }, 100)
@@ -147,7 +147,6 @@ class J1939Activity : BaseActivity(), View.OnClickListener, TextWatcher {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-
     }
 
     /**
@@ -172,7 +171,7 @@ class J1939Activity : BaseActivity(), View.OnClickListener, TextWatcher {
             val byte2 = J1939Utils.byte2int(id[2])
             val byte3 = J1939Utils.byte2int(id[3])
             val count = ((byte0 and 0xff) shl 24) or ((byte1 and 0xff) shl 16) or ((byte2 and 0xff) shl 8) or (byte3 and 0xff)
-            var ushrInt = count ushr 3
+            val ushrInt = count ushr 3
             val zeroString = "00000000000000000000000000000000"//4个字节 总共32位
             var ushrBinary = Integer.toBinaryString(ushrInt)
             if (ushrBinary.length < 32) {

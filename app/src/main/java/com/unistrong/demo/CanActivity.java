@@ -8,11 +8,11 @@ import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.android.e9631sdk.Command;
 import com.android.e9631sdk.CommunicationService;
 import com.android.e9631sdk.DataType;
+import com.android.e9631sdk.KtUtils;
 
 public class CanActivity extends BaseActivity implements View.OnClickListener {
 
@@ -89,7 +89,7 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
             mService.getData(new CommunicationService.IProcessData() {
                 @Override
                 public void process(byte[] bytes, DataType dataType) {
-                    Log.e(TAG, dataType.name() + " " + DataUtils.saveHex2String(bytes));
+                    Log.e(TAG, dataType.name() + " -> " + DataUtils.saveHex2String(bytes));
                     switch (dataType) {
                         case TAccOn:
                             break;
@@ -139,15 +139,43 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
         }
     }
 
-    private void handleCanData(byte[] data) {
-        switch (data[0]) {
-            case 0x01:
-                updateText("we got can channel 1 data:" + DataUtils.saveHex2String(data));
+    private void handleCanData(byte[] bytes) {
+        byte[] id = new byte[4];
+        System.arraycopy(bytes, 1, id, 0, id.length);//ID
+        byte[] data = null;
+        int frameFormatType = (id[3] & 7);
+        int frameFormat = 0;
+        int frameType = 0;
+        byte[] newId = null;
+        switch (frameFormatType) {
+            case 0://标准数据
+                frameFormat = 0;
+                frameType = 0;
+                newId = new KtUtils().ushr3(id, 21);
+                int dataLength = bytes[5];
+                data = new byte[dataLength];
+                System.arraycopy(bytes, 6, data, 0, dataLength);
                 break;
-            case 0x02:
-                updateText("we got can channel 2 data:" + DataUtils.saveHex2String(data));
+            case 2://标准远程
+                frameFormat = 0;
+                frameType = 1;
+                newId = new KtUtils().ushr3(id, 21);
+                break;
+            case 4://扩展数据
+                frameFormat = 1;
+                frameType = 0;
+                newId = new KtUtils().ushr3(id, 3);
+                int dataLengthExtra = bytes[5];
+                data = new byte[dataLengthExtra];
+                System.arraycopy(bytes, 6, data, 0, dataLengthExtra);
+                break;
+            case 6://扩展远程
+                frameFormat = 1;
+                frameType = 1;
+                newId = new KtUtils().ushr3(id, 3);
                 break;
         }
+        updateText("handleCanData 通道【" + bytes[0] + "】," + (frameFormat == 0 ? "标准帧" : "扩展帧") + " " + (frameType == 0 ? "数据帧" : "远程帧") + "id:[0x" + saveHex2String(newId) + "]" + (data == null ? "" : "data:[0x" + saveHex2String(data) + "]"));
     }
 
     private void sendCommand(byte[] data) {
@@ -211,10 +239,10 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
                     etId.setError("Error id");
                 } else {
                     if (strID.length() == 8) {
-                        if (strData.length() == 16) {
+                        if (strData.length() > 0 && strData.length() % 2 == 0) {
                             sendCanData(frameFormat, frameType, int2byte(strID, 4), int2byte(strData, 8));
                         } else {
-                            etId.setError("Date is 8 Byte");
+                            etId.setError("input Correct CAN DATA ");
                         }
                     } else {
                         etId.setError("Id is 4 Byte");
@@ -230,6 +258,8 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
                  0x02 标准远程帧
                  0x04 扩展数据帧
                  0x06 扩展远程帧
+
+                 0x08 表示过滤J1939协议
                  后面  发送数据 01 31 43 37 37 37 32 58 58
                  8个字节是过滤id的字符串
                  1C7772XX
@@ -238,7 +268,7 @@ public class CanActivity extends BaseActivity implements View.OnClickListener {
                  */
                 String strFilterID = etId.getText().toString().trim().toUpperCase();
                 byte[] id = strFilterID.getBytes();
-                sendCommand(Command.Send.filterCan(frameFormat,frameType,id));
+                sendCommand(Command.Send.filterCan(frameFormat, frameType, id));
                 filterStr = strFilterID;
                 break;
             case R.id.btn_filter_cancel:

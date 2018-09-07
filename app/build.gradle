@@ -7,8 +7,8 @@ android {
         applicationId "com.unistrong.e9631dmeo"
         minSdkVersion 15
         targetSdkVersion 23
-        versionCode 20
-        versionName "2.0"
+        versionCode 33
+        versionName "3.3"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
 
@@ -18,7 +18,6 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-
 }
 
 dependencies {
@@ -28,7 +27,7 @@ dependencies {
     implementation 'com.android.support:design:23.0.0'
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation project(':uartsdk')
-    implementation files('libs/e9635_can_sdk_v3.2.jar')
+    implementation project(':e9635sdk')
 }
 repositories {
     mavenCentral()

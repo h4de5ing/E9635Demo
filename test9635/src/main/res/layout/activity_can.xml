@@ -88,8 +88,7 @@
             android:id="@+id/btn_version"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="version"
-            android:visibility="gone" />
+            android:text="version" />
     </LinearLayout>
 
     <LinearLayout
@@ -127,7 +126,7 @@
                     android:layout_height="wrap_content"
                     android:hint="@string/send_cycle"
                     android:inputType="number"
-                    android:text="250" />
+                    android:text="1" />
             </android.support.design.widget.TextInputLayout>
 
             <CheckBox

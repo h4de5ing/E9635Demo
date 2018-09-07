@@ -1,2 +1,4 @@
-include ':app',':uartsdk'
+include ':e9635sdk'
+include ':uartsdk'
+include ':app'
 include 'test9635'
