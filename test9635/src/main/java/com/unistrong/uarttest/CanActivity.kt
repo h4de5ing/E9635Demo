@@ -12,6 +12,7 @@ import com.android.e9631sdk.Command
 import com.android.e9631sdk.CommunicationService
 import com.android.e9631sdk.DataType
 import com.unistrong.uarttest.utils.J1939Utils
+import com.unistrong.uarttest.utils.OperationUtils
 import com.unistrong.uarttest.utils.SpannableStringUtils
 import kotlinx.coroutines.experimental.async
 import java.nio.charset.Charset
@@ -33,6 +34,8 @@ class CanActivity : BaseActivity() {
     private lateinit var mTvResult: TextView
     private lateinit var mTvCount: TextView
     private lateinit var mCbNotShow: CheckBox
+    private lateinit var mIDInc: CheckBox
+    private lateinit var mDataInc: CheckBox
     private var mSendCycle = 250L
     private var mSendCount = 1L
     private var mCountSend = 0L
@@ -40,6 +43,8 @@ class CanActivity : BaseActivity() {
     private var mError = 0L
     private var mIsShow = false
     private var mIsAccoff = false
+    private var mIDinc = false
+    private var mDatainc = false
     private var mInitList = mutableListOf<ByteArray>()
 
     private val mBHandler = Handler()
@@ -66,6 +71,8 @@ class CanActivity : BaseActivity() {
         mBtnCleanCount = findViewById<Button>(R.id.btn_clean_count)
         mTvResult = findViewById(R.id.tv_result)
         mTvCount = findViewById(R.id.tv_count)
+        mIDInc = findViewById(R.id.cb_id_inc)
+        mDataInc = findViewById(R.id.cb_data_inc)
         mCbNotShow = findViewById<CheckBox>(R.id.cb_not_show)
         mTvResult.movementMethod = ScrollingMovementMethod.getInstance()
         val spFormatAdapter = ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, resources.getStringArray(R.array.can_format))
@@ -96,6 +103,12 @@ class CanActivity : BaseActivity() {
             mCountSend = 0
             mCountReceived = 0
             mTvCount.text = "s:$mCountSend r:$mCountReceived e:$mError"
+        }
+        mIDInc.setOnCheckedChangeListener { _: CompoundButton, isChecked: Boolean ->
+            mIDinc = isChecked
+        }
+        mDataInc.setOnCheckedChangeListener { _: CompoundButton, isChecked: Boolean ->
+            mDatainc = isChecked
         }
         mInitList.add(Command.Send.Version())
         mInitList.add(Command.Send.SearchChannel())
@@ -149,7 +162,7 @@ class CanActivity : BaseActivity() {
         if (sendCount.isEmpty()) mEtNumber.error = "请输入发送数量" else {
             if (idString.isEmpty()) mEtId.error = "请输入Can ID" else {
                 if (dataString.isEmpty()) mEtData.error = "请输入Can Data" else {
-                    var idStr = "01" + idString.replace(" ", "")
+                    var idStr = idString.replace(" ", "")
                     if (idStr.length % 2 != 0) {
                         idStr = idStr.substring(0, idStr.length - 1) + "0" + idStr.substring(idStr.length - 1, idStr.length)
                     }
@@ -159,28 +172,31 @@ class CanActivity : BaseActivity() {
                         id = id shl 8
                         id = id or (Integer.valueOf(idStr.substring(i * 2, i * 2 + 2), 16) and 0xff)
                     }
-                    val data = J1939Utils.int2bytes2(dataString)
-                    val idData = J1939Utils.int2bytes2(idStr)
                     mSendCount = sendCount.toLong()
-                    sendInThread(idData, data)
+                    sendInThread(idStr, dataString)
                 }
             }
         }
     }
 
     var isSendEnd = false
-    private fun sendInThread(idData: ByteArray, data: ByteArray) {
+    private fun sendInThread(idStr: String, dataString: String) {
+        val data = J1939Utils.int2bytes2(dataString)
+        val idData = J1939Utils.int2bytes2(idStr)
+        val format = mSpFormat.selectedItemPosition
+        val type = mSpType.selectedItemPosition
         async {
             (0 until mSendCount).forEach {
                 if (isSendEnd) {
                     return@async
                 }
                 mCountSend++
-                val idcandata = J1939Utils.byteArrayAddByteArray(idData, data)
+                val ds = dataString.replace(" ", "")
+                val sendData = if (mDatainc) OperationUtils.hexAddByteArray(ds, it.toInt()) else data
                 //update2UIMain("send:", J1939Utils.saveHex2String(idcandata))
                 try {
                     //if (!mIsAccoff) {//add off 不再发送数据
-                    write2Activity(Command.Send.sendData(idcandata, Command.SendDataType.Can))
+                    writeCan2Activity(format, type, idData, sendData)
                     updateCount()
                     //}
                 } catch (e: Exception) {
@@ -194,6 +210,14 @@ class CanActivity : BaseActivity() {
             }
             mBtnSend.text = "发送"
             isSendEnd = true
+        }
+    }
+
+    private fun writeCan2Activity(frameFormat: Int, frameType: Int, id: ByteArray, data: ByteArray) {
+        if (mService != null) {
+            if (mService!!.isBindSuccess) {
+                mService!!.sendCan(frameFormat,frameType,id,data)
+            }
         }
     }
 
@@ -282,7 +306,7 @@ class CanActivity : BaseActivity() {
             }
         }
     } catch (e: Exception) {
-        update2UIMain("error:", "mService is null " + e.toString())
+        //update2UIMain("error:", "mService is null " + e.toString())
         e.printStackTrace()
     }
 

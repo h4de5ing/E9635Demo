@@ -69,22 +69,22 @@ class UartActivity : BaseActivity() {
         mCbNotShow = findViewById(R.id.cb_not_show)
         mSpName = findViewById(R.id.sp_name)
         mSpBaud = findViewById(R.id.sp_baud)
-        mBtnSend.setOnClickListener({ sendData() })
-        mBtnClear.setOnClickListener({ mTvResult.text = "" })
-        mBtnCleanCount.setOnClickListener({
+        mBtnSend.setOnClickListener { sendData() }
+        mBtnClear.setOnClickListener { mTvResult.text = "" }
+        mBtnCleanCount.setOnClickListener {
             mCountSend = 0
             mCountReceived = 0
             mTvCount.text = "s:$mCountSend r:$mCountReceived"
-        })
-        mCbDatainc.setOnCheckedChangeListener({ _: CompoundButton, b: Boolean ->
+        }
+        mCbDatainc.setOnCheckedChangeListener { _: CompoundButton, b: Boolean ->
             mIsDatainc = b
-        })
-        mCbHex.setOnCheckedChangeListener({ _: CompoundButton, b: Boolean ->
+        }
+        mCbHex.setOnCheckedChangeListener { _: CompoundButton, b: Boolean ->
             mIsHex = b
-        })
-        mCbNotShow.setOnCheckedChangeListener({ _: CompoundButton, b: Boolean ->
+        }
+        mCbNotShow.setOnCheckedChangeListener { _: CompoundButton, b: Boolean ->
             mIsShow = b
-        })
+        }
         manager = UartManager()
         intBaudPosition = SPUtils.getSp(this@UartActivity, "baudPosition", 1) as Int
         val spDevicesAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, resources.getStringArray(R.array.uart_name))
@@ -165,6 +165,7 @@ class UartActivity : BaseActivity() {
             thread = null
         }
 
+        @SuppressLint("SetTextI18n")
         override fun run() {
             val recv = ByteArray(2048)
             if (manager != null) {
@@ -177,9 +178,9 @@ class UartActivity : BaseActivity() {
                             System.arraycopy(recv, 0, data, 0, length)
                             Log.e(TAG, "read: " + J1939Utils.saveHex2String(data))
                             mCountReceived += data.size
-                            runOnUiThread({
+                            runOnUiThread {
                                 mTvCount.text = "s:$mCountSend r:$mCountReceived"
-                            })
+                            }
                             if (mIsShow) {
                                 if (mIsHex) updateReceived2UI(J1939Utils.saveHex2String(data)) else updateReceived2UI(String(data))
                             }
