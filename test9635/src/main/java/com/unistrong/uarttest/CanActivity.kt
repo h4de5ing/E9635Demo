@@ -193,7 +193,6 @@ class CanActivity : BaseActivity() {
                 mCountSend++
                 val ds = dataString.replace(" ", "")
                 val sendData = if (mDatainc) OperationUtils.hexAddByteArray(ds, it.toInt()) else data
-                //update2UIMain("send:", J1939Utils.saveHex2String(idcandata))
                 try {
                     //if (!mIsAccoff) {//add off 不再发送数据
                     writeCan2Activity(format, type, idData, sendData)
@@ -306,7 +305,6 @@ class CanActivity : BaseActivity() {
             }
         }
     } catch (e: Exception) {
-        //update2UIMain("error:", "mService is null " + e.toString())
         e.printStackTrace()
     }
 

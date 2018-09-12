@@ -202,11 +202,11 @@ public class CommunicationService {
 
 
     private void postData2(byte[] protocolData) {
-        byte type = protocolData[2];
-        int length = ((protocolData[3] & 0xFF) << 8 | ((protocolData[4] & 0xFF)));
-        byte dataType = protocolData[5];
+        byte type = protocolData[0];
+        int length = ((protocolData[1] & 0xFF) << 8 | ((protocolData[2] & 0xFF)));
+        byte dataType = protocolData[3];
         byte[] data = new byte[length];
-        System.arraycopy(protocolData, 5, data, 0, data.length);
+        System.arraycopy(protocolData, 3, data, 0, data.length);
         if (type == 0x21) {
             mIProcessData.process(data, DataType.TMcuVersion);
         } else if (type == 0x30 && dataType == 0x01) {//acc on
@@ -281,6 +281,11 @@ public class CommunicationService {
                 newId = new KtUtils().ushr3(id, 3);
                 break;
         }
+        //channel ->  bytes[0]
+        //frameFormat
+        //frameType
+        //id  -> newId
+        //if(frameType == 0) data
     }
 
     private void updateJ1939(byte[] bytes) {
@@ -295,7 +300,7 @@ public class CommunicationService {
     }
 
     public static String saveHex2String(byte[] data) {
-        StringBuilder sb = new StringBuilder(data.length * 2);
+        StringBuilder sb = new StringBuilder();
         final char[] HEX = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
         for (byte aData : data) {
             int value = aData & 0xff;
