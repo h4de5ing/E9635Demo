@@ -31,7 +31,7 @@ object Log {
         }
 
 
-    private val TAG = "logcat"
+    private val TAG = "日志"
 
     /**
      * Priority constant for the println method; use Log.v.

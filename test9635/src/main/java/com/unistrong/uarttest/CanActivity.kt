@@ -62,7 +62,7 @@ class CanActivity : BaseActivity() {
         mSpType = findViewById<Spinner>(R.id.sp_type)
         mSpBaud = findViewById<Spinner>(R.id.sp_baud)
         mSpChannel = findViewById<Spinner>(R.id.sp_channel)
-        mEtId = findViewById(R.id.et_id)
+        mEtId = findViewById<EditText>(R.id.et_id)
         mEtData = findViewById<EditText>(R.id.et_data)
         mEtNumber = findViewById<EditText>(R.id.et_number)
         mEtCycle = findViewById<EditText>(R.id.et_send_cycle)
@@ -134,6 +134,7 @@ class CanActivity : BaseActivity() {
                 when (position) {
                     0 -> write2Activity(Command.Send.Switch500K())
                     1 -> write2Activity(Command.Send.Switch250K())
+                    2 -> write2Activity(Command.Send.Switch125K())
                 }
             }
         }
@@ -228,7 +229,7 @@ class CanActivity : BaseActivity() {
         }
     }
 
-
+    @SuppressLint("SetTextI18n")
     private fun update2UIMain(send: String, s: String) {
         async {
             runOnUiThread {
@@ -292,10 +293,11 @@ class CanActivity : BaseActivity() {
                 DataType.TDataCan -> {
                     mCountReceived++
                     updateCount()
-                    //update2UIMain("rev:", J1939Utils.saveHex2String(data))
+                    update2UIMain("rev:", J1939Utils.saveHex2String(data))
                 }
                 DataType.TChannel -> update2UIMain("tips:", " channel ${J1939Utils.byte2String(data[0])}")
                 DataType.TDataMode -> update2UIMain("tips:", " dataMode ${getMode(data[0])}")
+                DataType.TCan125 -> update2UIMain("tips:", " set can 125k success")
                 DataType.TCan250 -> update2UIMain("tips:", " set can 250k success")
                 DataType.TCan500 -> update2UIMain("tips:", " set can 500k success")
                 DataType.TMcuVersion -> update2UIMain("tips:", " Mcu Version: ${String(data, Charset.defaultCharset())}")
